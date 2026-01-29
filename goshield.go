@@ -625,13 +625,15 @@ func obfuscateStringsInText(content string) string {
 
 		if strings.HasPrefix(trimmed, "const ") ||
 			strings.HasPrefix(trimmed, "case ") ||
+			strings.HasPrefix(trimmed, "Set(") ||
 			strings.HasPrefix(trimmed, ".Set(") ||
 			strings.Contains(line, ".Set(") ||
 			strings.Contains(line, "`json:") ||
 			strings.Contains(line, "`xml:") ||
 			strings.Contains(line, "`yaml:") ||
 			strings.Contains(line, "Flag") ||
-			strings.Contains(line, "flag.") {
+			strings.Contains(line, "flag.") ||
+			strings.Contains(line, "launcher.") {
 			continue
 		}
 
