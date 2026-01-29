@@ -172,35 +172,68 @@ func obfuscateStringLiteral(s string) string {
 		return `""`
 	}
 
-	for _, r := range s {
-		if r > 127 {
-			return strconv.Quote(s)
-		}
-	}
-
 	var parts []string
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		switch rand.Intn(5) {
+	for _, r := range s {
+		switch rand.Intn(4) {
 		case 0:
-			parts = append(parts, fmt.Sprintf("string(%d)", c))
+			parts = append(parts, fmt.Sprintf("string(%d)", r))
 		case 1:
-			parts = append(parts, fmt.Sprintf("string(0x%x)", c))
+			parts = append(parts, fmt.Sprintf("string(0x%x)", r))
 		case 2:
-			parts = append(parts, fmt.Sprintf("string(0%o)", c))
-		case 3:
 			offset := rand.Intn(50) + 1
-			parts = append(parts, fmt.Sprintf("string(%d+%d)", int(c)-offset, offset))
+			parts = append(parts, fmt.Sprintf("string(%d+%d)", int(r)-offset, offset))
 		default:
-			if c == '"' || c == '\\' {
-				parts = append(parts, fmt.Sprintf("string(%d)", c))
-			} else if c >= 32 && c < 127 {
-				parts = append(parts, fmt.Sprintf(`"%c"`, c))
+			if r == '"' || r == '\\' || r > 127 {
+				parts = append(parts, fmt.Sprintf("string(%d)", r))
+			} else if r >= 32 && r < 127 {
+				parts = append(parts, fmt.Sprintf(`"%c"`, r))
 			} else {
-				parts = append(parts, fmt.Sprintf("string(%d)", c))
+				parts = append(parts, fmt.Sprintf("string(%d)", r))
 			}
 		}
 	}
+	return "(" + strings.Join(parts, "+") + ")"
+}
+
+func obfuscateFormatString(s string) string {
+	// Regex to match Go format specifiers: %d, %s, %v, %f, %10.2f, %-5s, %+d, %#x, %%, etc.
+	formatRe := regexp.MustCompile(`%[-+#0 ]*[0-9]*(\.[0-9]+)?[dsvftxXboqpeEgGUcTw%]`)
+
+	// Find all format specifiers and their positions
+	matches := formatRe.FindAllStringIndex(s, -1)
+	if len(matches) == 0 {
+		return obfuscateStringLiteral(s)
+	}
+
+	var parts []string
+	lastEnd := 0
+
+	for _, match := range matches {
+		start, end := match[0], match[1]
+
+		// Obfuscate text before this format specifier
+		if start > lastEnd {
+			textPart := s[lastEnd:start]
+			if len(textPart) > 0 {
+				parts = append(parts, obfuscateStringLiteral(textPart))
+			}
+		}
+
+		// Keep format specifier as-is (quoted)
+		formatSpec := s[start:end]
+		parts = append(parts, fmt.Sprintf(`"%s"`, formatSpec))
+
+		lastEnd = end
+	}
+
+	// Obfuscate remaining text after last format specifier
+	if lastEnd < len(s) {
+		textPart := s[lastEnd:]
+		if len(textPart) > 0 {
+			parts = append(parts, obfuscateStringLiteral(textPart))
+		}
+	}
+
 	return "(" + strings.Join(parts, "+") + ")"
 }
 
@@ -657,13 +690,16 @@ func obfuscateStringsInText(content string) string {
 			if len(s) < 3 {
 				return match
 			}
-			if strings.Contains(s, "%") || strings.Contains(s, "\\") {
+			if strings.Contains(s, "\\") {
 				return match
 			}
 			if strings.Contains(s, "://") && !isVarAssignment {
 				return match
 			}
 			count++
+			if strings.Contains(s, "%") {
+				return obfuscateFormatString(s)
+			}
 			return obfuscateStringLiteral(s)
 		})
 	}
