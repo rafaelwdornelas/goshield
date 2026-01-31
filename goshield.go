@@ -21,6 +21,7 @@
 //   -no-vars        Disable variable name obfuscation
 //   -no-functions   Disable function name obfuscation
 //   -no-imports     Disable import alias obfuscation
+//   -minify         Minify output (remove newlines, single line)
 //   -v              Verbose output
 
 package main
@@ -57,6 +58,7 @@ var (
 	noVars      = flag.Bool("no-vars", false, "Disable variable obfuscation")
 	noFunctions = flag.Bool("no-functions", false, "Disable function obfuscation")
 	noImports   = flag.Bool("no-imports", false, "Disable import obfuscation")
+	minify      = flag.Bool("minify", false, "Minify output (remove newlines, single line)")
 )
 
 // =============================================================================
@@ -758,6 +760,76 @@ func obfuscateIntegersInText(content string) string {
 }
 
 // =============================================================================
+// MINIFICATION
+// =============================================================================
+
+func minifyCode(content string) string {
+	lines := strings.Split(content, "\n")
+	var result []string
+
+	for _, line := range lines {
+		// Remove leading/trailing whitespace but keep the line
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue // Skip empty lines
+		}
+		result = append(result, trimmed)
+	}
+
+	// Join lines - keep newlines where Go requires them for semicolon insertion
+	// but merge lines that can be safely merged
+	output := ""
+	for i, line := range result {
+		output += line
+
+		if i < len(result)-1 {
+			nextLine := result[i+1]
+
+			// Lines that can be merged (no newline needed)
+			canMerge := false
+
+			// After opening brackets, we can merge
+			if strings.HasSuffix(line, "{") ||
+				strings.HasSuffix(line, "(") ||
+				strings.HasSuffix(line, "[") ||
+				strings.HasSuffix(line, ",") ||
+				strings.HasSuffix(line, "||") ||
+				strings.HasSuffix(line, "&&") {
+				canMerge = true
+			}
+
+			// Before closing brackets, we can merge
+			if strings.HasPrefix(nextLine, "}") ||
+				strings.HasPrefix(nextLine, ")") ||
+				strings.HasPrefix(nextLine, "]") {
+				canMerge = true
+			}
+
+			// After case/default label, we can merge
+			if strings.HasSuffix(line, ":") &&
+				(strings.Contains(line, "case ") || strings.HasPrefix(line, "default:")) {
+				canMerge = true
+			}
+
+			// Before case/default in switch, we need newline (Go inserts semicolon)
+			if strings.HasPrefix(nextLine, "case ") ||
+				strings.HasPrefix(nextLine, "case\"") ||
+				strings.HasPrefix(nextLine, "default:") {
+				canMerge = false
+			}
+
+			if canMerge {
+				output += " "
+			} else {
+				output += "\n"
+			}
+		}
+	}
+
+	return output
+}
+
+// =============================================================================
 // MAIN
 // =============================================================================
 
@@ -836,6 +908,12 @@ func main() {
 	text = obfuscateBacktickStrings(text)
 	text = obfuscateStringsInText(text)
 	text = obfuscateIntegersInText(text)
+
+	// Minify if requested
+	if *minify {
+		text = minifyCode(text)
+		logInfo("Code minified (single line)")
+	}
 
 	if err := ioutil.WriteFile(*outputFile, []byte(text), 0644); err != nil {
 		logError("Final write failed: %v", err)
