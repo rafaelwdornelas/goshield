@@ -26,6 +26,7 @@ GoShield provides comprehensive protection for your Go source code through multi
 | 💻 **Embedded Code** | Obfuscates JavaScript, SQL, and other embedded code in backtick strings |
 | 🗑️ **Comment Removal** | Automatically strips all comments from the output |
 | 🏗️ **Type Obfuscation** | Renames struct types and type aliases |
+| 📦 **Minification** | Removes empty lines and reduces code to compact form (~65% line reduction) |
 
 ## 🚀 Installation
 
@@ -49,10 +50,16 @@ go install github.com/rafaelwdornelas/goshield@latest
 goshield -i input.go -o output.go
 ```
 
-### With Options
+### With Minification
 
 ```bash
-goshield -i main.go -o obfuscated.go -seed mysecret -v
+goshield -i main.go -o obfuscated.go -minify
+```
+
+### With All Options
+
+```bash
+goshield -i main.go -o obfuscated.go -minify -seed mysecret -v
 ```
 
 ### All Options
@@ -62,6 +69,7 @@ goshield -i main.go -o obfuscated.go -seed mysecret -v
 | `-i` | Input Go file path | (required) |
 | `-o` | Output Go file path | (required) |
 | `-seed` | Seed for reproducible obfuscation | random |
+| `-minify` | Minify output (remove empty lines, compact code) | false |
 | `-v` | Verbose output | false |
 | `-no-strings` | Disable string obfuscation | false |
 | `-no-ints` | Disable integer obfuscation | false |
@@ -97,6 +105,14 @@ func main() {
     kТ0рВНМxаpОеl := (18+24)
     Bа1Тxk0МоHpрT.Println(xМНlТ0аeуВkрТpО, kТ0рВНМxаpОеl)
 }
+```
+
+### After with Minification (-minify)
+
+```go
+package main
+import Bа1Тxk0МоHpрT "fmt"
+func main() { xМНlТ0аeуВkрТpО := (string(72)+string(0x65)+string(108)+string(0x6c)+string(111)+string(44)+string(0x20)+string(87)+string(111)+string(114)+string(0x6c)+string(100)+string(33)); kТ0рВНМxаpОеl := (18+24); Bа1Тxk0МоHpрT.Println(xМНlТ0аeуВkрТpО, kТ0рВНМxаpОеl) }
 ```
 
 ## 🔒 What Gets Obfuscated
